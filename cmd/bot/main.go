@@ -40,7 +40,7 @@ func main() {
 	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: level,
 	})
-	l := slog.New(h)
+	l := slog.New(h).With("version", config.Get().Version)
 	slog.SetDefault(l)
 
 	shutdownFns, err := instrumentation.Init(rootCtx)
@@ -63,8 +63,43 @@ func main() {
 
 	session.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent
 
+	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
+
 	session.AddHandler(discord.HandleGuildCreate)
 	session.AddHandler(discord.HandleGuildDelete)
+	session.AddHandler(discord.HandleIgnoreSystemID)
+	session.AddHandler(discord.HandleIgnoreSystemName)
+	session.AddHandler(discord.HandleIgnoreRegionID)
+	session.AddHandler(func(s *discordgo.Session, m *discordgo.Ready) {
+		if cmd, err := session.ApplicationCommandCreate(session.State.User.ID, "", discord.IgnoreSystemIDCommand); err != nil {
+			slog.Error("failed to create command", "command", discord.IgnoreSystemIDCommand.Name, "error", err)
+		} else {
+			registeredCommands = append(registeredCommands, cmd)
+		}
+		if cmd, err := session.ApplicationCommandCreate(session.State.User.ID, "", discord.IgnoreSystemNameCommand); err != nil {
+			slog.Error("failed to create command", "command", discord.IgnoreSystemNameCommand.Name, "error", err)
+		} else {
+			registeredCommands = append(registeredCommands, cmd)
+		}
+		if cmd, err := session.ApplicationCommandCreate(session.State.User.ID, "", discord.IgnoreRegionIDCommand); err != nil {
+			slog.Error("failed to create command", "command", discord.IgnoreRegionIDCommand.Name, "error", err)
+		} else {
+			registeredCommands = append(registeredCommands, cmd)
+		}
+	})
+
+	defer func() {
+		if session.State != nil && session.State.User != nil {
+			for _, v := range registeredCommands {
+				err := session.ApplicationCommandDelete(session.State.User.ID, "", v.ID)
+				if err != nil {
+					slog.Error("failed to delete command", "comand", v.Name, "error", err)
+				}
+			}
+		}
+
+		session.Close()
+	}()
 
 	if config.Get().Discord.Verbose {
 		session.LogLevel = discordgo.LogDebug
@@ -160,7 +195,6 @@ func main() {
 
 	<-sigChan
 	tick.Stop()
-	session.Close()
 	close(out)
 	slog.Info("exiting")
 }
