@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"maps"
 	"net/http"
@@ -93,6 +94,7 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 		return nil, err
 	}
 	req.Header.Set("User-Agent", fmt.Sprintf("%s/%s:%s %s", config.Get().AdminName, config.Get().AppName, config.Get().Version, config.Get().AdminEmail))
+	// req.Header.Set("Accept-Encoding", "gzip")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -101,11 +103,19 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	decoder := json.NewDecoder(resp.Body)
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error("failed to read body", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		resp.Body.Close()
+		return nil, err
+	}
 
 	var killmails []Killmail
-	if err := decoder.Decode(&killmails); err != nil {
-		logger.Error("failed to decode killmails", "error", err)
+	if err := json.Unmarshal(b, &killmails); err != nil {
+		logger.Error("failed to decode killmails", "error", err, "body", string(b))
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		resp.Body.Close()
