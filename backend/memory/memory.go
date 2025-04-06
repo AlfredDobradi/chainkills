@@ -13,8 +13,9 @@ var ttl = 24 * time.Hour
 type Backend struct {
 	mx *sync.Mutex
 
-	count uint64
-	items map[string]time.Time
+	count    uint64
+	items    map[string]time.Time
+	keyValue map[string]any
 }
 
 func New() (*Backend, error) {
@@ -57,25 +58,29 @@ func (c *Backend) evict() {
 	}
 }
 
-func (c *Backend) GetIgnoredSystemIDs(ctx context.Context) ([]string, error) {
+func (c *Backend) GetIgnoredSystemIDs(ctx context.Context, guildID string) ([]string, error) {
+
 	return make([]string, 0), nil
 }
-func (c *Backend) GetIgnoredSystemNames(ctx context.Context) ([]string, error) {
+func (c *Backend) GetIgnoredSystemNames(ctx context.Context, guildID string) ([]string, error) {
 	return make([]string, 0), nil
 }
-func (c *Backend) GetIgnoredRegionIDs(ctx context.Context) ([]string, error) {
+func (c *Backend) GetIgnoredRegionIDs(ctx context.Context, guildID string) ([]string, error) {
 	return make([]string, 0), nil
 }
 func (c *Backend) GetRegisteredChannels(ctx context.Context) ([]model.Channel, error) {
 	return make([]model.Channel, 0), nil
 }
-func (c *Backend) IgnoreSystemID(ctx context.Context, id int64) error {
+func (c *Backend) GetRegisteredChannelsByGuild(ctx context.Context, guildID string) ([]model.Channel, error) {
+	return make([]model.Channel, 0), nil
+}
+func (c *Backend) IgnoreSystemID(ctx context.Context, guildID string, id int64) error {
 	return nil
 }
-func (c *Backend) IgnoreSystemName(ctx context.Context, name string) error {
+func (c *Backend) IgnoreSystemName(ctx context.Context, guildID string, name string) error {
 	return nil
 }
-func (c *Backend) IgnoreRegionID(ctx context.Context, id int64) error {
+func (c *Backend) IgnoreRegionID(ctx context.Context, guildID string, id int64) error {
 	return nil
 }
 func (c *Backend) RegisterChannel(ctx context.Context, guildID string, channelID string) error {

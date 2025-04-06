@@ -272,7 +272,7 @@ func ignoredSystemIDs() map[int]struct{} {
 	}
 
 	if b, err := backend.Backend(); err == nil {
-		if idsFromBackend, err := b.GetIgnoredSystemIDs(context.Background()); err == nil {
+		if idsFromBackend, err := b.GetIgnoredSystemIDs(context.Background(), ""); err == nil {
 			for _, idStr := range idsFromBackend {
 				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
 					ids[int(id)] = struct{}{}
@@ -299,7 +299,7 @@ func ignoredSystemNames() map[string]struct{} {
 	}
 
 	if b, err := backend.Backend(); err == nil {
-		if namesFromBackend, err := b.GetIgnoredSystemNames(context.Background()); err == nil {
+		if namesFromBackend, err := b.GetIgnoredSystemNames(context.Background(), ""); err == nil {
 			for _, name := range namesFromBackend {
 				names[name] = struct{}{}
 			}
@@ -321,7 +321,7 @@ func ignoredRegionIDs() map[int]struct{} {
 	}
 
 	if b, err := backend.Backend(); err == nil {
-		if idsFromBackend, err := b.GetIgnoredRegionIDs(context.Background()); err == nil {
+		if idsFromBackend, err := b.GetIgnoredRegionIDs(context.Background(), ""); err == nil {
 			for _, idStr := range idsFromBackend {
 				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
 					ids[int(id)] = struct{}{}

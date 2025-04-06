@@ -14,6 +14,8 @@ spec:
       containers:
         - name: chainkills
           image: ghcr.io/alfreddobradi/chainkills:v1.3.0
+          imagePullSecrets:
+            - name: regcred
           command:
             - 'chainkills'
             - '--config'

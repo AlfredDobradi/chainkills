@@ -16,14 +16,15 @@ const engine = "redict"
 type Engine interface {
 	AddKillmail(ctx context.Context, id string) error
 	KillmailExists(ctx context.Context, id string) (bool, error)
-	GetIgnoredSystemIDs(ctx context.Context) ([]string, error)
-	GetIgnoredSystemNames(ctx context.Context) ([]string, error)
-	GetIgnoredRegionIDs(ctx context.Context) ([]string, error)
-	IgnoreSystemID(ctx context.Context, id int64) error
-	IgnoreSystemName(ctx context.Context, name string) error
-	IgnoreRegionID(ctx context.Context, id int64) error
+	GetIgnoredSystemIDs(ctx context.Context, guildID string) ([]string, error)
+	GetIgnoredSystemNames(ctx context.Context, guildID string) ([]string, error)
+	GetIgnoredRegionIDs(ctx context.Context, guildID string) ([]string, error)
+	IgnoreSystemID(ctx context.Context, guildID string, id int64) error
+	IgnoreSystemName(ctx context.Context, guildID string, name string) error
+	IgnoreRegionID(ctx context.Context, guildID string, id int64) error
 	RegisterChannel(ctx context.Context, guildID string, channelID string) error
 	GetRegisteredChannels(ctx context.Context) ([]model.Channel, error)
+	GetRegisteredChannelsByGuild(ctx context.Context, guildID string) ([]model.Channel, error)
 }
 
 func Backend() (Engine, error) {

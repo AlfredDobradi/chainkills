@@ -94,7 +94,7 @@ func (r *Backend) KillmailExists(ctx context.Context, id string) (bool, error) {
 	return false, err
 }
 
-func (r *Backend) GetIgnoredSystemIDs(ctx context.Context) ([]string, error) {
+func (r *Backend) GetIgnoredSystemIDs(ctx context.Context, guildID string) ([]string, error) {
 	_, span := otel.Tracer(packageName).Start(ctx, spanGetIgnoredSystemIDs)
 	defer span.End()
 
@@ -109,7 +109,7 @@ func (r *Backend) GetIgnoredSystemIDs(ctx context.Context) ([]string, error) {
 	span.SetStatus(codes.Ok, "ok")
 	return ids, nil
 }
-func (r *Backend) GetIgnoredSystemNames(ctx context.Context) ([]string, error) {
+func (r *Backend) GetIgnoredSystemNames(ctx context.Context, guildID string) ([]string, error) {
 	_, span := otel.Tracer(packageName).Start(ctx, spanGetIgnoredSystemNames)
 	defer span.End()
 
@@ -125,7 +125,7 @@ func (r *Backend) GetIgnoredSystemNames(ctx context.Context) ([]string, error) {
 	return ids, nil
 }
 
-func (r *Backend) GetIgnoredRegionIDs(ctx context.Context) ([]string, error) {
+func (r *Backend) GetIgnoredRegionIDs(ctx context.Context, guildID string) ([]string, error) {
 	_, span := otel.Tracer(packageName).Start(ctx, spanGetIgnoredRegionIDs)
 	defer span.End()
 
@@ -171,13 +171,34 @@ func (r *Backend) GetRegisteredChannels(ctx context.Context) ([]model.Channel, e
 	return channels, nil
 }
 
-func (r *Backend) IgnoreSystemID(ctx context.Context, id int64) error {
+func (r *Backend) GetRegisteredChannelsByGuild(ctx context.Context, guildID string) ([]model.Channel, error) {
+	sctx, span := otel.Tracer(packageName).Start(ctx, spanGetRegisteredChannels)
+	defer span.End()
+
+	allChannels, err := r.GetRegisteredChannels(sctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	validChannels := make([]model.Channel, 0, len(allChannels))
+	for _, channel := range allChannels {
+		if channel.GuildID == guildID {
+			validChannels = append(validChannels, channel)
+		}
+	}
+	span.SetStatus(codes.Ok, "ok")
+	return validChannels, nil
+}
+
+func (r *Backend) IgnoreSystemID(ctx context.Context, guildID string, id int64) error {
 	sctx, span := otel.Tracer(packageName).Start(ctx, spanIgnoreSystemID)
 	defer span.End()
 
 	span.SetAttributes(attribute.Int64("id", id))
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredSystemIDs)
+	key := fmt.Sprintf("%s:%s:%s", config.Get().Redict.Prefix, guildID, keyIgnoredSystemIDs)
 	if _, err := r.redict.SAdd(sctx, key, id).Result(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -188,13 +209,13 @@ func (r *Backend) IgnoreSystemID(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (r *Backend) IgnoreSystemName(ctx context.Context, name string) error {
+func (r *Backend) IgnoreSystemName(ctx context.Context, guildID string, name string) error {
 	sctx, span := otel.Tracer(packageName).Start(ctx, spanIgnoreSystemName)
 	defer span.End()
 
 	span.SetAttributes(attribute.String("name", name))
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredSystemNames)
+	key := fmt.Sprintf("%s:%s:%s", config.Get().Redict.Prefix, guildID, keyIgnoredSystemNames)
 	if _, err := r.redict.SAdd(sctx, key, name).Result(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -205,13 +226,13 @@ func (r *Backend) IgnoreSystemName(ctx context.Context, name string) error {
 	return nil
 }
 
-func (r *Backend) IgnoreRegionID(ctx context.Context, id int64) error {
+func (r *Backend) IgnoreRegionID(ctx context.Context, guildID string, id int64) error {
 	sctx, span := otel.Tracer(packageName).Start(ctx, spanIgnoreRegionID)
 	defer span.End()
 
 	span.SetAttributes(attribute.Int64("id", id))
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredRegionIDs)
+	key := fmt.Sprintf("%s:%s:%s", config.Get().Redict.Prefix, guildID, keyIgnoredRegionIDs)
 	if _, err := r.redict.SAdd(sctx, key, id).Result(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())

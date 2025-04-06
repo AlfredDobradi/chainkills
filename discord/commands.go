@@ -110,7 +110,7 @@ func HandleIgnoreSystemID(ctx context.Context, s *discordgo.Session, i *discordg
 		return
 	}
 
-	if err := backend.IgnoreSystemID(sctx, i.ApplicationCommandData().Options[0].IntValue()); err != nil {
+	if err := backend.IgnoreSystemID(sctx, i.GuildID, i.ApplicationCommandData().Options[0].IntValue()); err != nil {
 		slog.Error("failed to add ignored system id", "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
@@ -168,7 +168,7 @@ func HandleIgnoreSystemName(ctx context.Context, s *discordgo.Session, i *discor
 
 	systemName := i.ApplicationCommandData().Options[0].StringValue()
 
-	if err := backend.IgnoreSystemName(sctx, systemName); err != nil {
+	if err := backend.IgnoreSystemName(sctx, i.GuildID, systemName); err != nil {
 		slog.Error("failed to add ignored system name", "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
@@ -201,8 +201,8 @@ func HandleIgnoreRegionID(ctx context.Context, s *discordgo.Session, i *discordg
 		return
 	}
 
-	if err := backend.IgnoreSystemID(sctx, i.ApplicationCommandData().Options[0].IntValue()); err != nil {
-		slog.Error("failed to add ignored system id", "error", err)
+	if err := backend.IgnoreRegionID(sctx, i.GuildID, i.ApplicationCommandData().Options[0].IntValue()); err != nil {
+		slog.Error("failed to add ignored region id", "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
 		return
@@ -214,7 +214,7 @@ func HandleIgnoreRegionID(ctx context.Context, s *discordgo.Session, i *discordg
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf(
-				"System ID %d has been ignored",
+				"Region ID %d has been ignored",
 				systemID,
 			),
 		},
