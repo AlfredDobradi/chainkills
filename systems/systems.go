@@ -15,6 +15,7 @@ import (
 	"git.sr.ht/~barveyhirdman/chainkills/backend"
 	"git.sr.ht/~barveyhirdman/chainkills/common"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
+	"git.sr.ht/~barveyhirdman/chainkills/version"
 	"github.com/gorilla/websocket"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -114,7 +115,7 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 	}
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", config.Get().Wanderer.Token))
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s:%s", config.Get().AdminName, config.Get().AppName, config.Get().Version))
+	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s:%s", config.Get().AdminName, config.Get().AppName, version.Version()))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -266,12 +267,8 @@ func isWH(sys System) bool {
 func ignoredSystemIDs() map[int]struct{} {
 	ids := make(map[int]struct{}, 0)
 
-	for _, sys := range config.Get().IgnoreSystemIDs {
-		ids[sys] = struct{}{}
-	}
-
 	if b, err := backend.Backend(); err == nil {
-		if idsFromBackend, err := b.GetIgnoredSystemIDs(context.Background()); err == nil {
+		if idsFromBackend, err := b.GetIgnoredSystemIDs(context.Background(), ""); err == nil {
 			for _, idStr := range idsFromBackend {
 				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
 					ids[int(id)] = struct{}{}
@@ -293,12 +290,8 @@ func ignoredSystemIDs() map[int]struct{} {
 func ignoredSystemNames() map[string]struct{} {
 	names := make(map[string]struct{}, 0)
 
-	for _, sys := range config.Get().IgnoreSystemNames {
-		names[sys] = struct{}{}
-	}
-
 	if b, err := backend.Backend(); err == nil {
-		if namesFromBackend, err := b.GetIgnoredSystemNames(context.Background()); err == nil {
+		if namesFromBackend, err := b.GetIgnoredSystemNames(context.Background(), ""); err == nil {
 			for _, name := range namesFromBackend {
 				names[name] = struct{}{}
 			}
@@ -315,12 +308,8 @@ func ignoredSystemNames() map[string]struct{} {
 func ignoredRegionIDs() map[int]struct{} {
 	ids := make(map[int]struct{}, 0)
 
-	for _, sys := range config.Get().IgnoreRegionIDs {
-		ids[sys] = struct{}{}
-	}
-
 	if b, err := backend.Backend(); err == nil {
-		if idsFromBackend, err := b.GetIgnoredRegionIDs(context.Background()); err == nil {
+		if idsFromBackend, err := b.GetIgnoredRegionIDs(context.Background(), ""); err == nil {
 			for _, idStr := range idsFromBackend {
 				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
 					ids[int(id)] = struct{}{}

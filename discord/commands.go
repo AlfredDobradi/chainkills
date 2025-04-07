@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"log/slog"
 
-	"git.sr.ht/~barveyhirdman/chainkills/backend"
 	"github.com/bwmarrin/discordgo"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 )
 
 var packageName = "git.sr.ht/~barveyhirdman/chainkills/discord"
+
+var RegisterChannelCommand = &discordgo.ApplicationCommand{
+	Name:        "register-channel",
+	Description: "Register this channel for notifications",
+}
 
 var IgnoreSystemIDCommand = &discordgo.ApplicationCommand{
 	Name:        "ignore-system-id",
@@ -52,19 +56,61 @@ var IgnoreRegionIDCommand = &discordgo.ApplicationCommand{
 	},
 }
 
-func HandleIgnoreSystemID(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) {
-	sctx, span := otel.Tracer(packageName).Start(context.Background(), "HandleIgnoreSystemID")
+func HandleRegisterChannel(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	_, span := otel.Tracer(packageName).Start(context.Background(), "HandleIgnoreSystemID")
 	defer span.End()
 
-	backend, err := backend.Backend()
+	guild, err := getGuild(span, s, i.GuildID)
 	if err != nil {
-		slog.Error("failed to get backend", "error", err)
+		return
+	}
+
+	channel, err := getChannel(span, s, i.ChannelID)
+	if err != nil {
+		return
+	}
+
+	backend, err := getBackend(span)
+	if err != nil {
+		return
+	}
+
+	if err := backend.RegisterChannel(ctx, guild.ID, channel.ID); err != nil {
+		slog.Error("failed to register channel", "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
 		return
 	}
 
-	if err := backend.IgnoreSystemID(sctx, i.ApplicationCommandData().Options[0].IntValue()); err != nil {
+	slog.Info("registered channel", "guild", guild.Name, "channel", channel.Name)
+
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf(
+				"Channel %s registered for notifications",
+				channel.Name,
+			),
+		},
+	}); err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
+		slog.Error("failed to respond to interaction", "error", err)
+	}
+
+	span.SetStatus(codes.Ok, "ok")
+}
+
+func HandleIgnoreSystemID(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	sctx, span := otel.Tracer(packageName).Start(context.Background(), "HandleIgnoreSystemID")
+	defer span.End()
+
+	backend, err := getBackend(span)
+	if err != nil {
+		return
+	}
+
+	if err := backend.IgnoreSystemID(sctx, i.GuildID, i.ApplicationCommandData().Options[0].IntValue()); err != nil {
 		slog.Error("failed to add ignored system id", "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
@@ -106,6 +152,8 @@ func HandleSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		HandleIgnoreSystemName(ctx, s, i)
 	case "ignore-region-id":
 		HandleIgnoreRegionID(ctx, s, i)
+	case "register-channel":
+		HandleRegisterChannel(ctx, s, i)
 	}
 }
 
@@ -113,17 +161,14 @@ func HandleIgnoreSystemName(ctx context.Context, s *discordgo.Session, i *discor
 	sctx, span := otel.Tracer(packageName).Start(context.Background(), "HandleIgnoreSystemName")
 	defer span.End()
 
-	backend, err := backend.Backend()
+	backend, err := getBackend(span)
 	if err != nil {
-		slog.Error("failed to get backend", "error", err)
-		span.SetStatus(codes.Error, err.Error())
-		span.RecordError(err)
 		return
 	}
 
 	systemName := i.ApplicationCommandData().Options[0].StringValue()
 
-	if err := backend.IgnoreSystemName(sctx, systemName); err != nil {
+	if err := backend.IgnoreSystemName(sctx, i.GuildID, systemName); err != nil {
 		slog.Error("failed to add ignored system name", "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
@@ -151,16 +196,13 @@ func HandleIgnoreRegionID(ctx context.Context, s *discordgo.Session, i *discordg
 	sctx, span := otel.Tracer(packageName).Start(context.Background(), "HandleIgnoreRegionID")
 	defer span.End()
 
-	backend, err := backend.Backend()
+	backend, err := getBackend(span)
 	if err != nil {
-		slog.Error("failed to get backend", "error", err)
-		span.SetStatus(codes.Error, err.Error())
-		span.RecordError(err)
 		return
 	}
 
-	if err := backend.IgnoreSystemID(sctx, i.ApplicationCommandData().Options[0].IntValue()); err != nil {
-		slog.Error("failed to add ignored system id", "error", err)
+	if err := backend.IgnoreRegionID(sctx, i.GuildID, i.ApplicationCommandData().Options[0].IntValue()); err != nil {
+		slog.Error("failed to add ignored region id", "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
 		return
@@ -172,7 +214,7 @@ func HandleIgnoreRegionID(ctx context.Context, s *discordgo.Session, i *discordg
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf(
-				"System ID %d has been ignored",
+				"Region ID %d has been ignored",
 				systemID,
 			),
 		},

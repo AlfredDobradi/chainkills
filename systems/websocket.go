@@ -61,23 +61,6 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 
 			errorCount = 0
 
-			if killmail.Zkill.NPC {
-				slog.Debug("filtered out killmail",
-					"reason", "NPC kill",
-					"id", killmail.KillmailID,
-				)
-				continue
-			}
-
-			if !filter(killmail) {
-				slog.Debug("filtered out killmail",
-					"reason", "system is on ignore list",
-					"id", killmail.KillmailID,
-					"system", killmail.SolarSystemID,
-				)
-				continue
-			}
-
 			deviation := time.Since(killmail.OriginalTimestamp)
 
 			slog.Info("received new killmail",
@@ -108,24 +91,4 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 			}
 		}
 	}
-}
-
-func filter(km Killmail) bool {
-	valid := true
-
-	Register().mx.Lock()
-	systems := Register().systems
-	Register().mx.Unlock()
-
-	found := false
-	for _, sys := range systems {
-		if sys.SolarSystemID == km.SolarSystemID {
-			found = true
-		}
-	}
-	if !found {
-		return false
-	}
-
-	return valid
 }

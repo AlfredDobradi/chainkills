@@ -15,3 +15,6 @@ test:
 
 clean:
 	rm -rf dist
+
+lint:
+	golangci-lint run ./...
