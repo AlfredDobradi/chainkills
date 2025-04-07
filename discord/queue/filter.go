@@ -26,7 +26,7 @@ func (g *Guild) filter(ctx context.Context, km systems.Killmail) bool {
 	return true
 }
 
-func (g *Guild) filterNPC(ctx context.Context, killmail systems.Killmail) bool {
+func (g *Guild) filterNPC(ctx context.Context, killmail systems.Killmail) bool { //nolint:unused
 	return !killmail.Zkill.NPC
 }
 

@@ -13,9 +13,10 @@ var ttl = 24 * time.Hour
 type Backend struct {
 	mx *sync.Mutex
 
-	count    uint64
-	items    map[string]time.Time
-	keyValue map[string]any
+	count uint64
+	items map[string]time.Time
+	// FUTURE this will be used for testing
+	keyValue map[string]any //nolint:unused
 }
 
 func New() (*Backend, error) {
