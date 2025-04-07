@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"git.sr.ht/~barveyhirdman/chainkills/backend"
 	"git.sr.ht/~barveyhirdman/chainkills/common"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
 	"git.sr.ht/~barveyhirdman/chainkills/discord"
+	"git.sr.ht/~barveyhirdman/chainkills/discord/queue"
 	"git.sr.ht/~barveyhirdman/chainkills/instrumentation"
 	"git.sr.ht/~barveyhirdman/chainkills/systems"
 	"git.sr.ht/~barveyhirdman/chainkills/version"
@@ -64,12 +64,6 @@ func main() {
 			slog.Error("failed to shut down tracer cleanly", "error", err)
 		}
 	}()
-
-	backend, err := backend.Backend()
-	if err != nil {
-		slog.Error("failed to initialize backend", "error", err)
-		os.Exit(1)
-	}
 
 	discord.Init()
 	session, err := discordgo.New("Bot " + config.Get().Discord.Token)
@@ -192,60 +186,8 @@ func main() {
 		}
 	}()
 
-	go func() {
-		for msg := range out {
-			if msg.KillmailID == 0 {
-				continue
-			}
-
-			channels, err := backend.GetRegisteredChannels(rootCtx)
-			if err != nil {
-				slog.Error("failed to get registered channels", "error", err)
-				continue
-			}
-
-			validChannels := make([]string, 0)
-			for _, channel := range channels {
-				c := channel.ChannelID
-				if _, err := session.State.Channel(c); err == nil {
-					validChannels = append(validChannels, c)
-				} else {
-					slog.Warn("channel not found", "channel", c)
-				}
-			}
-			if config.Get().Discord.DryRun {
-				slog.Warn("dry run enabled, not sending message",
-					"message", msg,
-					"channels", validChannels,
-				)
-				continue
-			}
-
-			embed, err := msg.Embed()
-			if err != nil {
-				slog.Error("failed to prepare embed", "error", err)
-				return
-			}
-			cwg := &sync.WaitGroup{}
-			common.GetBackpressureMonitor().Increase("channel_send")
-			for _, channel := range validChannels {
-				cwg.Add(1)
-				go func(ccc string) {
-					defer func() {
-						common.GetBackpressureMonitor().Decrease("channel_send")
-						cwg.Done()
-					}()
-					if _, err := session.ChannelMessageSendEmbed(ccc, embed); err != nil {
-						slog.Error("failed to send message", "error", err)
-						return
-					}
-				}(channel)
-			}
-			cwg.Wait()
-
-			common.GetBackpressureMonitor().Decrease("killmail")
-		}
-	}()
+	go messageLoop(rootCtx, session, out)
+	slog.Info("waiting for outgoing messages")
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
@@ -256,4 +198,45 @@ func main() {
 	tick.Stop()
 	close(out)
 	slog.Info("exiting")
+}
+
+func messageLoop(ctx context.Context, session *discordgo.Session, inbox chan systems.Killmail) {
+	for msg := range inbox {
+		if msg.KillmailID == 0 {
+			continue
+		}
+
+		slog.Debug("received message", "killmail_id", msg.KillmailID)
+		channels := queue.TargetChannels(ctx, msg)
+		slog.Debug("found target channels", "channels", channels)
+
+		embed, err := msg.Embed()
+		if err != nil {
+			slog.Error("failed to create embed", "error", err)
+			continue
+		}
+
+		if config.Get().Discord.DryRun {
+			slog.Warn("dry run enabled, not sending message",
+				"message", msg,
+				"channels", channels,
+			)
+			continue
+		}
+
+		cwg := &sync.WaitGroup{}
+		for _, channel := range channels {
+			cwg.Add(1)
+			go func(ccc string) {
+				defer cwg.Done()
+				if _, err := session.ChannelMessageSendEmbed(ccc, embed); err != nil {
+					slog.Error("failed to send message", "error", err)
+					return
+				}
+			}(channel)
+		}
+		cwg.Wait()
+
+		common.GetBackpressureMonitor().Decrease("killmail")
+	}
 }

@@ -16,11 +16,13 @@ type Killmail struct {
 	Victim            CharacterInfo   `json:"victim"`
 	OriginalTimestamp time.Time       `json:"killmail_time"`
 	SolarSystemID     int             `json:"solar_system_id"`
-	Zkill             struct {
-		URL  string `json:"url"`
-		Hash string `json:"hash"`
-		NPC  bool   `json:"npc"`
-	} `json:"zkb"`
+	Zkill             Zkill           `json:"zkb"`
+}
+
+type Zkill struct {
+	URL  string `json:"url"`
+	Hash string `json:"hash"`
+	NPC  bool   `json:"npc"`
 }
 
 type CharacterInfo struct {

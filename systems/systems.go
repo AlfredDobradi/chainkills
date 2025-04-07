@@ -267,10 +267,6 @@ func isWH(sys System) bool {
 func ignoredSystemIDs() map[int]struct{} {
 	ids := make(map[int]struct{}, 0)
 
-	for _, sys := range config.Get().IgnoreSystemIDs {
-		ids[sys] = struct{}{}
-	}
-
 	if b, err := backend.Backend(); err == nil {
 		if idsFromBackend, err := b.GetIgnoredSystemIDs(context.Background(), ""); err == nil {
 			for _, idStr := range idsFromBackend {
@@ -294,10 +290,6 @@ func ignoredSystemIDs() map[int]struct{} {
 func ignoredSystemNames() map[string]struct{} {
 	names := make(map[string]struct{}, 0)
 
-	for _, sys := range config.Get().IgnoreSystemNames {
-		names[sys] = struct{}{}
-	}
-
 	if b, err := backend.Backend(); err == nil {
 		if namesFromBackend, err := b.GetIgnoredSystemNames(context.Background(), ""); err == nil {
 			for _, name := range namesFromBackend {
@@ -315,10 +307,6 @@ func ignoredSystemNames() map[string]struct{} {
 
 func ignoredRegionIDs() map[int]struct{} {
 	ids := make(map[int]struct{}, 0)
-
-	for _, sys := range config.Get().IgnoreRegionIDs {
-		ids[sys] = struct{}{}
-	}
 
 	if b, err := backend.Backend(); err == nil {
 		if idsFromBackend, err := b.GetIgnoredRegionIDs(context.Background(), ""); err == nil {
