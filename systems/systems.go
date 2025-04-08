@@ -277,6 +277,7 @@ func ignoredEntities(kind string) map[int]struct{} {
 	var getError error
 
 	var returnedIDs []string
+
 	switch kind {
 	case "system":
 		returnedIDs, getError = b.GetIgnoredSystemIDs(context.Background())
