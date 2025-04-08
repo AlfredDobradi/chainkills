@@ -119,7 +119,7 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 		km := killmails[i]
 		id := fmt.Sprintf("%d", km.KillmailID)
 
-		if config.Get().Redict.Cache {
+		if config.Get().Backend.Cache {
 			exists, err := cache.KillmailExists(sctx, id)
 			if err != nil {
 				span.RecordError(err)
@@ -163,7 +163,7 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 
 		kms[id] = km
 
-		if config.Get().Redict.Cache {
+		if config.Get().Backend.Cache {
 			if err := cache.AddKillmail(sctx, id); err != nil {
 				span.RecordError(err)
 				logger.Error("failed to add item to cache", "id", id, "error", err)

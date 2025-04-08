@@ -6,6 +6,8 @@ import (
 	"log/slog"
 
 	"git.sr.ht/~barveyhirdman/chainkills/backend"
+	v2 "git.sr.ht/~barveyhirdman/chainkills/backend/v2"
+	"git.sr.ht/~barveyhirdman/chainkills/backend/v2/repository"
 	"github.com/bwmarrin/discordgo"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -43,7 +45,7 @@ func HandleIgnoreSystemID(ctx context.Context, s *discordgo.Session, i *discordg
 	sctx, span := otel.Tracer(packageName).Start(context.Background(), "HandleIgnoreSystemID")
 	defer span.End()
 
-	backend, err := backend.Backend()
+	backend, err := repository.New(v2.Get("redis"))
 	if err != nil {
 		slog.Error("failed to get backend", "error", err)
 		span.SetStatus(codes.Error, err.Error())

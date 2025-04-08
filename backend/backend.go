@@ -30,7 +30,7 @@ func Backend() (Engine, error) {
 		case "redict":
 			fallthrough
 		default:
-			backend, err = redict.New(config.Get().Redict.Address)
+			backend, err = redict.New(config.Get().Backend.Address)
 		}
 	}
 

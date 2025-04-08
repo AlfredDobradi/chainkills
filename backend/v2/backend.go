@@ -22,8 +22,8 @@ func Get(kind string) Engine {
 		return memory.New()
 	case "redis":
 		return redis.NewClient(&redis.Options{
-			Addr: config.Get().Redict.Address,
-			DB:   config.Get().Redict.Database,
+			Addr: config.Get().Backend.Address,
+			DB:   config.Get().Backend.Database,
 		})
 	}
 

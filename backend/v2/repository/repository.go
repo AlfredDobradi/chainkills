@@ -44,8 +44,8 @@ func (r *Backend) AddKillmail(ctx context.Context, id string) error {
 
 	span.SetAttributes(attribute.String("id", id))
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, id)
-	if err := r.store.Set(context.Background(), key, "", time.Duration(config.Get().Redict.TTL)*time.Minute).Err(); err != nil {
+	key := fmt.Sprintf("%s:%s", config.Get().Backend.Prefix, id)
+	if err := r.store.Set(context.Background(), key, "", time.Duration(config.Get().Backend.TTL)*time.Minute).Err(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
@@ -62,7 +62,7 @@ func (r *Backend) KillmailExists(ctx context.Context, id string) (bool, error) {
 
 	span.SetAttributes(attribute.String("id", id))
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, id)
+	key := fmt.Sprintf("%s:%s", config.Get().Backend.Prefix, id)
 	_, err := r.store.Get(context.Background(), key).Result()
 
 	switch err {
@@ -86,7 +86,7 @@ func (r *Backend) GetIgnoredSystemIDs(ctx context.Context) ([]string, error) {
 	_, span := otel.Tracer(packageName).Start(ctx, spanGetIgnoredSystemIDs)
 	defer span.End()
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredSystemIDs)
+	key := fmt.Sprintf("%s:%s", config.Get().Backend.Prefix, keyIgnoredSystemIDs)
 	ids, err := r.store.SMembers(context.Background(), key).Result()
 	if err != nil {
 		span.RecordError(err)
@@ -102,7 +102,7 @@ func (r *Backend) GetIgnoredRegionIDs(ctx context.Context) ([]string, error) {
 	_, span := otel.Tracer(packageName).Start(ctx, spanGetIgnoredRegionIDs)
 	defer span.End()
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredRegionIDs)
+	key := fmt.Sprintf("%s:%s", config.Get().Backend.Prefix, keyIgnoredRegionIDs)
 	ids, err := r.store.SMembers(context.Background(), key).Result()
 	if err != nil {
 		span.RecordError(err)
@@ -120,7 +120,7 @@ func (r *Backend) IgnoreSystemID(ctx context.Context, id int64) error {
 
 	span.SetAttributes(attribute.Int64("id", id))
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredSystemIDs)
+	key := fmt.Sprintf("%s:%s", config.Get().Backend.Prefix, keyIgnoredSystemIDs)
 	if _, err := r.store.SAdd(sctx, key, id).Result(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -137,7 +137,7 @@ func (r *Backend) IgnoreRegionID(ctx context.Context, id int64) error {
 
 	span.SetAttributes(attribute.Int64("id", id))
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredRegionIDs)
+	key := fmt.Sprintf("%s:%s", config.Get().Backend.Prefix, keyIgnoredRegionIDs)
 	if _, err := r.store.SAdd(sctx, key, id).Result(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())

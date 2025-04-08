@@ -22,13 +22,13 @@ type Cfg struct {
 	FetchTimeFrame  int      `yaml:"fetch_timeframe"`
 	IgnoreSystemIDs []int    `yaml:"ignore_system_ids"`
 	IgnoreRegionIDs []int    `yaml:"ignore_region_ids"`
-	Redict          Redict   `yaml:"redict"`
+	Backend         Backend  `yaml:"backend"`
 	Wanderer        Wanderer `yaml:"wanderer"`
 	Discord         Discord  `yaml:"discord"`
 	Friends         Friends  `yaml:"friends"`
 }
 
-type Redict struct {
+type Backend struct {
 	Cache    bool
 	Database int    `yaml:"database"`
 	TTL      int    `yaml:"ttl"` // Time to live for keys in minutes
@@ -77,7 +77,7 @@ func Read(path string) error {
 	cfg := Cfg{
 		RefreshInterval: 60,
 		FetchTimeFrame:  1,
-		Redict: Redict{
+		Backend: Backend{
 			TTL:    1440, // 24 hours
 			Prefix: "global",
 		},
