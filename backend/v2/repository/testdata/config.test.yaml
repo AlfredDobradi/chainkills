@@ -1,0 +1,18 @@
+admin_name: test
+admin_email: test
+verbose: true
+app_name: test
+queue_id: test
+refresh_interval: 120
+fetch_timeframe: 3 # Number of hours to look back for killmails
+only_wh_kills: false
+discord:
+  verbose: false
+  dry_run: true
+  token: test
+redict:
+  cache: false
+  address: localhost:6379
+  prefix: dev
+  database: 2
+  ttl: 86400
