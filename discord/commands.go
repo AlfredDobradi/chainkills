@@ -26,19 +26,6 @@ var IgnoreSystemIDCommand = &discordgo.ApplicationCommand{
 	},
 }
 
-var IgnoreSystemNameCommand = &discordgo.ApplicationCommand{
-	Name:        "ignore-system-name",
-	Description: "Ignore a system by name",
-	Options: []*discordgo.ApplicationCommandOption{
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "system_name",
-			Description: "The name of the system to ignore",
-			Required:    true,
-		},
-	},
-}
-
 var IgnoreRegionIDCommand = &discordgo.ApplicationCommand{
 	Name:        "ignore-region-id",
 	Description: "Ignore a region by ID",
@@ -102,49 +89,9 @@ func HandleSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	switch i.ApplicationCommandData().Name {
 	case "ignore-system-id":
 		HandleIgnoreSystemID(ctx, s, i)
-	case "ignore-system-name":
-		HandleIgnoreSystemName(ctx, s, i)
 	case "ignore-region-id":
 		HandleIgnoreRegionID(ctx, s, i)
 	}
-}
-
-func HandleIgnoreSystemName(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) {
-	sctx, span := otel.Tracer(packageName).Start(context.Background(), "HandleIgnoreSystemName")
-	defer span.End()
-
-	backend, err := backend.Backend()
-	if err != nil {
-		slog.Error("failed to get backend", "error", err)
-		span.SetStatus(codes.Error, err.Error())
-		span.RecordError(err)
-		return
-	}
-
-	systemName := i.ApplicationCommandData().Options[0].StringValue()
-
-	if err := backend.IgnoreSystemName(sctx, systemName); err != nil {
-		slog.Error("failed to add ignored system name", "error", err)
-		span.SetStatus(codes.Error, err.Error())
-		span.RecordError(err)
-		return
-	}
-
-	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf(
-				"System name %s has been ignored",
-				systemName,
-			),
-		},
-	}); err != nil {
-		span.SetStatus(codes.Error, err.Error())
-		span.RecordError(err)
-		slog.Error("failed to respond to interaction", "error", err)
-	}
-
-	span.SetStatus(codes.Ok, "ok")
 }
 
 func HandleIgnoreRegionID(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) {

@@ -16,10 +16,8 @@ type Engine interface {
 	AddKillmail(ctx context.Context, id string) error
 	KillmailExists(ctx context.Context, id string) (bool, error)
 	GetIgnoredSystemIDs(ctx context.Context) ([]string, error)
-	GetIgnoredSystemNames(ctx context.Context) ([]string, error)
 	GetIgnoredRegionIDs(ctx context.Context) ([]string, error)
 	IgnoreSystemID(ctx context.Context, id int64) error
-	IgnoreSystemName(ctx context.Context, name string) error
 	IgnoreRegionID(ctx context.Context, id int64) error
 }
 

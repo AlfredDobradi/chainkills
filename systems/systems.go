@@ -148,7 +148,6 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 
 	logger.Info("filtering systems",
 		"wormholes_only", config.Get().OnlyWHKills,
-		"ignored_system_names", ignoredSystemNames(),
 		"ignored_system_ids", ignoredSystemIDs(),
 		"ignored_region_ids", ignoredRegionIDs(),
 	)
@@ -158,15 +157,6 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 		if config.Get().OnlyWHKills && !isWH(sys) {
 			logger.Debug("discarding system",
 				"reason", "wormhole kills only is turned on",
-				"system_name", sys.Name,
-				"system_id", sys.SolarSystemID,
-			)
-			continue
-		}
-
-		if common.ContainsKey(ignoredSystemNames(), sys.Name) {
-			logger.Debug("discarding system",
-				"reason", "system is on ignore list",
 				"system_name", sys.Name,
 				"system_id", sys.SolarSystemID,
 			)
@@ -288,28 +278,6 @@ func ignoredSystemIDs() map[int]struct{} {
 	}
 
 	return ids
-}
-
-func ignoredSystemNames() map[string]struct{} {
-	names := make(map[string]struct{}, 0)
-
-	for _, sys := range config.Get().IgnoreSystemNames {
-		names[sys] = struct{}{}
-	}
-
-	if b, err := backend.Backend(); err == nil {
-		if namesFromBackend, err := b.GetIgnoredSystemNames(context.Background()); err == nil {
-			for _, name := range namesFromBackend {
-				names[name] = struct{}{}
-			}
-		} else {
-			slog.Warn("failed to get ignored system names from backend", "error", err)
-		}
-	} else {
-		slog.Warn("failed to get backend", "error", err)
-	}
-
-	return names
 }
 
 func ignoredRegionIDs() map[int]struct{} {

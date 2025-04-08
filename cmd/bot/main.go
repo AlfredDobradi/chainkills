@@ -82,7 +82,6 @@ func main() {
 
 	commands := []*discordgo.ApplicationCommand{
 		discord.IgnoreSystemIDCommand,
-		discord.IgnoreSystemNameCommand,
 		discord.IgnoreRegionIDCommand,
 	}
 	cmdWg := &sync.WaitGroup{}

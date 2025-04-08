@@ -16,18 +16,15 @@ import (
 var packageName string = "git.sr.ht/~barveyhirdman/chainkills/backend/redict"
 
 const (
-	spanAddKillmail           = "AddKillmail"
-	spanKillmailExists        = "KillmailExists"
-	spanGetIgnoredSystemIDs   = "GetIgnoredSystemIDs"
-	spanGetIgnoredSystemNames = "GetIgnoredSystemNames"
-	spanGetIgnoredRegionIDs   = "GetIgnoredRegionIDs"
-	spanIgnoreSystemID        = "IgnoreSystemID"
-	spanIgnoreSystemName      = "IgnoreSystemName"
-	spanIgnoreRegionID        = "IgnoreRegionID"
+	spanAddKillmail         = "AddKillmail"
+	spanKillmailExists      = "KillmailExists"
+	spanGetIgnoredSystemIDs = "GetIgnoredSystemIDs"
+	spanGetIgnoredRegionIDs = "GetIgnoredRegionIDs"
+	spanIgnoreSystemID      = "IgnoreSystemID"
+	spanIgnoreRegionID      = "IgnoreRegionID"
 
-	keyIgnoredSystemIDs   = "ignored_system_ids"
-	keyIgnoredSystemNames = "ignored_system_names"
-	keyIgnoredRegionIDs   = "ignored_region_ids"
+	keyIgnoredSystemIDs = "ignored_system_ids"
+	keyIgnoredRegionIDs = "ignored_region_ids"
 )
 
 type Backend struct {
@@ -104,21 +101,7 @@ func (r *Backend) GetIgnoredSystemIDs(ctx context.Context) ([]string, error) {
 	span.SetStatus(codes.Ok, "ok")
 	return ids, nil
 }
-func (r *Backend) GetIgnoredSystemNames(ctx context.Context) ([]string, error) {
-	_, span := otel.Tracer(packageName).Start(ctx, spanGetIgnoredSystemNames)
-	defer span.End()
 
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredSystemNames)
-	ids, err := r.redict.SMembers(context.Background(), key).Result()
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-
-	span.SetStatus(codes.Ok, "ok")
-	return ids, nil
-}
 func (r *Backend) GetIgnoredRegionIDs(ctx context.Context) ([]string, error) {
 	_, span := otel.Tracer(packageName).Start(ctx, spanGetIgnoredRegionIDs)
 	defer span.End()
@@ -143,23 +126,6 @@ func (r *Backend) IgnoreSystemID(ctx context.Context, id int64) error {
 
 	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredSystemIDs)
 	if _, err := r.redict.SAdd(sctx, key, id).Result(); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-
-	span.SetStatus(codes.Ok, "ok")
-	return nil
-}
-
-func (r *Backend) IgnoreSystemName(ctx context.Context, name string) error {
-	sctx, span := otel.Tracer(packageName).Start(ctx, spanIgnoreSystemName)
-	defer span.End()
-
-	span.SetAttributes(attribute.String("name", name))
-
-	key := fmt.Sprintf("%s:%s", config.Get().Redict.Prefix, keyIgnoredSystemNames)
-	if _, err := r.redict.SAdd(sctx, key, name).Result(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
