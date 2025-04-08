@@ -50,6 +50,7 @@ func (r *Backend) AddKillmail(ctx context.Context, id string) error {
 	if err := r.store.Set(context.Background(), key, "", time.Duration(config.Get().Backend.TTL)*time.Minute).Err(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return err
 	}
 
@@ -71,10 +72,12 @@ func (r *Backend) KillmailExists(ctx context.Context, id string) (bool, error) {
 	case nil:
 		span.SetAttributes(attribute.String("cache", "hit"))
 		slog.Debug("cache hit", "id", id)
+
 		return true, nil
 	case redis.Nil:
 		span.SetAttributes(attribute.String("cache", "miss"))
 		slog.Debug("cache miss", "id", id)
+
 		return false, nil
 	}
 
@@ -89,14 +92,17 @@ func (r *Backend) GetIgnoredSystemIDs(ctx context.Context) ([]string, error) {
 	defer span.End()
 
 	key := fmt.Sprintf("%s:%s", config.Get().Backend.Prefix, keyIgnoredSystemIDs)
+
 	ids, err := r.store.SMembers(context.Background(), key).Result()
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return nil, err
 	}
 
 	span.SetStatus(codes.Ok, "ok")
+
 	return ids, nil
 }
 
@@ -105,14 +111,17 @@ func (r *Backend) GetIgnoredRegionIDs(ctx context.Context) ([]string, error) {
 	defer span.End()
 
 	key := fmt.Sprintf("%s:%s", config.Get().Backend.Prefix, keyIgnoredRegionIDs)
+
 	ids, err := r.store.SMembers(context.Background(), key).Result()
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return nil, err
 	}
 
 	span.SetStatus(codes.Ok, "ok")
+
 	return ids, nil
 }
 
@@ -126,10 +135,12 @@ func (r *Backend) IgnoreSystemID(ctx context.Context, id int64) error {
 	if _, err := r.store.SAdd(sctx, key, id).Result(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return err
 	}
 
 	span.SetStatus(codes.Ok, "ok")
+
 	return nil
 }
 
@@ -143,9 +154,11 @@ func (r *Backend) IgnoreRegionID(ctx context.Context, id int64) error {
 	if _, err := r.store.SAdd(sctx, key, id).Result(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return err
 	}
 
 	span.SetStatus(codes.Ok, "ok")
+
 	return nil
 }

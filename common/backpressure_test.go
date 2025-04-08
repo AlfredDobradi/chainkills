@@ -32,9 +32,11 @@ func TestAsyncBackpressure(t *testing.T) {
 	b := NewBackpressureMonitor()
 
 	wg := &sync.WaitGroup{}
+
 	for i := 0; i < 10; i++ {
 		b.Increase("test")
 		wg.Add(1)
+
 		go func() {
 			defer func() {
 				wg.Done()
@@ -48,6 +50,7 @@ func TestAsyncBackpressure(t *testing.T) {
 			time.Sleep(t)
 		}()
 	}
+
 	wg.Wait()
 
 	require.Equal(t, 0, b.services["test"].count)

@@ -28,12 +28,14 @@ func (s *Store) Get(ctx context.Context, key string) *redis.StringCmd {
 	if value, ok := s.keyValue[key]; ok {
 		return redis.NewStringResult(value.(string), nil)
 	}
+
 	return redis.NewStringResult("", redis.Nil)
 }
 
 func (s *Store) SMembers(ctx context.Context, key string) *redis.StringSliceCmd {
 	result := make([]string, 0)
 	ss, ok := s.keyValue[key]
+
 	if !ok {
 		return redis.NewStringSliceResult(result, redis.Nil)
 	}
@@ -47,6 +49,7 @@ func (s *Store) SMembers(ctx context.Context, key string) *redis.StringSliceCmd 
 	for k := range value {
 		members = append(members, fmt.Sprintf("%v", k))
 	}
+
 	return redis.NewStringSliceResult(members, nil)
 }
 
@@ -63,10 +66,12 @@ func (s *Store) SAdd(ctx context.Context, key string, members ...any) *redis.Int
 	}
 
 	var delta int64 = 0
+
 	for _, m := range members {
 		if _, ok := value[m]; !ok {
 			delta++
 		}
+
 		value[m] = struct{}{}
 	}
 

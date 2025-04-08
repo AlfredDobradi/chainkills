@@ -105,13 +105,17 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 	span.AddEvent("fetch systems", trace.WithAttributes(
 		attribute.String("url", url),
 	))
+
 	req, err := http.NewRequest(http.MethodGet, url, nil)
+
 	if err != nil {
 		logger.Error("failed to create request", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return false, err
 	}
+
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", config.Get().Wanderer.Token))
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s:%s", config.Get().AdminName, config.Get().AppName, config.Get().Version))
@@ -121,6 +125,7 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 		logger.Error("failed to fetch systems", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return false, err
 	}
 
@@ -131,13 +136,16 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 		logger.Error("failed to decode systems", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		if err := resp.Body.Close(); err != nil {
 			logger.Error("failed to close response body", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 		}
+
 		return false, err
 	}
+
 	if err := resp.Body.Close(); err != nil {
 		logger.Error("failed to close response body", "error", err)
 		span.RecordError(err)
@@ -153,13 +161,13 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 	)
 
 	for _, sys := range list.Data {
-
 		if config.Get().OnlyWHKills && !isWH(sys) {
 			logger.Debug("discarding system",
 				"reason", "wormhole kills only is turned on",
 				"system_name", sys.Name,
 				"system_id", sys.SolarSystemID,
 			)
+
 			continue
 		}
 
@@ -169,6 +177,7 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 				"system_name", sys.Name,
 				"system_id", sys.SolarSystemID,
 			)
+
 			continue
 		}
 
@@ -181,6 +190,7 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 					"system_id", sys.SolarSystemID,
 					"region_id", systemData.RegionID,
 				)
+
 				continue
 			}
 		} else {
@@ -188,7 +198,6 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 		}
 
 		tmpRegistry = append(tmpRegistry, sys)
-
 	}
 
 	newHash := listHash(tmpRegistry)
@@ -205,6 +214,7 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 		attribute.Bool("change", changed),
 		attribute.Int("system_count", len(tmpRegistry)),
 	))
+
 	return changed, nil
 }
 
@@ -236,6 +246,7 @@ func (s *SystemRegister) Fetch(ctx context.Context, out chan Killmail) error {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return err
 	}
 

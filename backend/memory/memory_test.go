@@ -41,6 +41,7 @@ func TestSetGet(t *testing.T) {
 
 		t.Run(tt.name, tf)
 	}
+
 	_, err := store.Set(context.Background(), "test_key", "test_value", 0).Result()
 	require.NoError(t, err)
 

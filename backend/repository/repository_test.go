@@ -77,7 +77,9 @@ func TestIgnoredEntities(t *testing.T) {
 	for name, tt := range tests {
 		tf := func(t *testing.T) {
 			var ignore func(context.Context, int64) error
+
 			var get func(context.Context) ([]string, error)
+
 			switch tt.kind {
 			default:
 				fallthrough

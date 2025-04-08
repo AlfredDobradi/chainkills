@@ -48,6 +48,7 @@ func HandleIgnoreSystemID(ctx context.Context, s *discordgo.Session, i *discordg
 		slog.Error("failed to get backend", "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
+
 		return
 	}
 
@@ -55,6 +56,7 @@ func HandleIgnoreSystemID(ctx context.Context, s *discordgo.Session, i *discordg
 		slog.Error("failed to add ignored system id", "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
+
 		return
 	}
 
@@ -98,36 +100,65 @@ func HandleIgnoreRegionID(ctx context.Context, s *discordgo.Session, i *discordg
 	sctx, span := otel.Tracer(packageName).Start(context.Background(), "HandleIgnoreRegionID")
 	defer span.End()
 
-	backend, err := repository.New()
+	span.SetStatus(codes.Ok, "ok")
+
+	regionID := i.ApplicationCommandData().Options[0].IntValue()
+
+	response, err := ignoreEntityID(sctx, "region_id", regionID)
 	if err != nil {
-		slog.Error("failed to get backend", "error", err)
+		slog.Error("failed to add region to ignored entity list", "id", regionID, "error", err)
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
-		return
 	}
 
-	if err := backend.IgnoreSystemID(sctx, i.ApplicationCommandData().Options[0].IntValue()); err != nil {
-		slog.Error("failed to add ignored system id", "error", err)
-		span.SetStatus(codes.Error, err.Error())
-		span.RecordError(err)
-		return
-	}
-
-	systemID := i.ApplicationCommandData().Options[0].IntValue()
-
-	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf(
-				"System ID %d has been ignored",
-				systemID,
-			),
-		},
-	}); err != nil {
+	if err := s.InteractionRespond(i.Interaction, response); err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
 		slog.Error("failed to respond to interaction", "error", err)
 	}
+}
 
-	span.SetStatus(codes.Ok, "ok")
+func ignoreEntityID(ctx context.Context, kind string, value int64) (*discordgo.InteractionResponse, error) {
+	sctx, span := otel.Tracer(packageName).Start(ctx, "ignoreEntityID")
+	defer span.End()
+
+	backend, err := repository.New()
+	if err != nil {
+		return &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("Failed to ignore %s: %d", kind, value),
+			},
+		}, err
+	}
+
+	message := ""
+	switch kind {
+	case "system":
+		err = backend.IgnoreSystemID(sctx, value)
+		message = fmt.Sprintf("System ID %d has been ignored", value)
+	case "region":
+		err = backend.IgnoreRegionID(sctx, value)
+		message = fmt.Sprintf("Region ID %d has been ignored", value)
+	default:
+		err = fmt.Errorf("unknown kind: %s", kind)
+	}
+
+	if err != nil {
+		return &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("Failed to ignore %s: %d", kind, value),
+			},
+		}, err
+	}
+
+	response := &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: message,
+		},
+	}
+
+	return response, nil
 }
