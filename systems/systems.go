@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"sync"
 
-	"git.sr.ht/~barveyhirdman/chainkills/backend"
+	"git.sr.ht/~barveyhirdman/chainkills/backend/repository"
 	"git.sr.ht/~barveyhirdman/chainkills/common"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
 	"github.com/gorilla/websocket"
@@ -260,7 +260,7 @@ func ignoredSystemIDs() map[int]struct{} {
 		ids[sys] = struct{}{}
 	}
 
-	if b, err := backend.Backend(); err == nil {
+	if b, err := repository.New(); err == nil {
 		if idsFromBackend, err := b.GetIgnoredSystemIDs(context.Background()); err == nil {
 			for _, idStr := range idsFromBackend {
 				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
@@ -287,7 +287,7 @@ func ignoredRegionIDs() map[int]struct{} {
 		ids[sys] = struct{}{}
 	}
 
-	if b, err := backend.Backend(); err == nil {
+	if b, err := repository.New(); err == nil {
 		if idsFromBackend, err := b.GetIgnoredRegionIDs(context.Background()); err == nil {
 			for _, idStr := range idsFromBackend {
 				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {

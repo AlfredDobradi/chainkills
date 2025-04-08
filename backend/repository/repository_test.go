@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	v2 "git.sr.ht/~barveyhirdman/chainkills/backend/v2"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
 	"github.com/stretchr/testify/require"
 )
@@ -13,8 +12,7 @@ func setup(t *testing.T) *Backend {
 	err := config.Read("./testdata/config.test.yaml")
 	require.NoError(t, err)
 
-	e := v2.Get("memory")
-	backend, err := New(e)
+	backend, err := New()
 	require.NoError(t, err)
 
 	return backend

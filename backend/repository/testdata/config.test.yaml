@@ -10,9 +10,5 @@ discord:
   verbose: false
   dry_run: true
   token: test
-redict:
-  cache: false
-  address: localhost:6379
-  prefix: dev
-  database: 2
-  ttl: 86400
+backend:
+  kind: memory

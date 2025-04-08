@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	v2 "git.sr.ht/~barveyhirdman/chainkills/backend/v2"
+	"git.sr.ht/~barveyhirdman/chainkills/backend"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel"
@@ -29,10 +29,12 @@ const (
 )
 
 type Backend struct {
-	store v2.Engine
+	store backend.Engine
 }
 
-func New(engine v2.Engine) (*Backend, error) {
+func New() (*Backend, error) {
+	engine := backend.Get()
+
 	return &Backend{
 		store: engine,
 	}, nil

@@ -2,37 +2,32 @@ package backend
 
 import (
 	"context"
+	"time"
 
 	"git.sr.ht/~barveyhirdman/chainkills/backend/memory"
-	"git.sr.ht/~barveyhirdman/chainkills/backend/redict"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
+	"github.com/redis/go-redis/v9"
 )
 
-var backend Engine
-
-const engine = "redict"
-
 type Engine interface {
-	AddKillmail(ctx context.Context, id string) error
-	KillmailExists(ctx context.Context, id string) (bool, error)
-	GetIgnoredSystemIDs(ctx context.Context) ([]string, error)
-	GetIgnoredRegionIDs(ctx context.Context) ([]string, error)
-	IgnoreSystemID(ctx context.Context, id int64) error
-	IgnoreRegionID(ctx context.Context, id int64) error
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Get(ctx context.Context, key string) *redis.StringCmd
+	SMembers(ctx context.Context, key string) *redis.StringSliceCmd
+	SAdd(ctx context.Context, key string, members ...interface{}) *redis.IntCmd
 }
 
-func Backend() (Engine, error) {
-	var err error
-	if backend == nil {
-		switch engine {
-		case "memory":
-			backend, err = memory.New()
-		case "redict":
-			fallthrough
-		default:
-			backend, err = redict.New(config.Get().Backend.Address)
-		}
+func Get() Engine {
+	switch config.Get().Backend.Kind {
+	default:
+		fallthrough
+	case "memory":
+		return memory.New()
+	case "redis":
+		return redis.NewClient(&redis.Options{
+			Addr: config.Get().Backend.Address,
+			DB:   config.Get().Backend.Database,
+		})
 	}
 
-	return backend, err
+	return nil
 }

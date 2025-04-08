@@ -30,6 +30,7 @@ type Cfg struct {
 
 type Backend struct {
 	Cache    bool
+	Kind     string `yaml:"kind"`
 	Database int    `yaml:"database"`
 	TTL      int    `yaml:"ttl"` // Time to live for keys in minutes
 	Address  string `yaml:"address"`

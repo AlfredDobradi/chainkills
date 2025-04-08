@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"git.sr.ht/~barveyhirdman/chainkills/backend"
+	"git.sr.ht/~barveyhirdman/chainkills/backend/repository"
 	"git.sr.ht/~barveyhirdman/chainkills/common"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
 	"go.opentelemetry.io/otel"
@@ -101,7 +101,7 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 		page++
 	}
 
-	cache, err := backend.Backend()
+	cache, err := repository.New()
 	if err != nil {
 		logger.Error("failed to get cache instance", "error", err)
 		span.RecordError(err)
