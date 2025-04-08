@@ -28,6 +28,4 @@ func Get() Engine {
 			DB:   config.Get().Backend.Database,
 		})
 	}
-
-	return nil
 }
