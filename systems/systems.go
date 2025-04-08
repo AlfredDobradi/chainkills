@@ -15,6 +15,7 @@ import (
 	"git.sr.ht/~barveyhirdman/chainkills/backend/repository"
 	"git.sr.ht/~barveyhirdman/chainkills/common"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
+	"git.sr.ht/~barveyhirdman/chainkills/version"
 	"github.com/gorilla/websocket"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -80,6 +81,7 @@ func Register(opts ...Option) *SystemRegister {
 
 func listHash(list []System) [32]byte {
 	listJSON, _ := json.Marshal(list)
+
 	return sha256.Sum256(listJSON)
 }
 
@@ -118,7 +120,7 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", config.Get().Wanderer.Token))
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s:%s", config.Get().AdminName, config.Get().AppName, config.Get().Version))
+	req.Header.Add("User-Agent", userAgent())
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -262,58 +264,61 @@ func isWH(sys System) bool {
 	return whPattern.MatchString(sys.Name)
 }
 
-// ignoredSystemIDs returns a map of system IDs that should be ignored
-// from the config and the backend both by name and ID
-func ignoredSystemIDs() map[int]struct{} {
+func ignoredEntities(kind string) map[int]struct{} {
 	ids := make(map[int]struct{}, 0)
 
-	for _, sys := range config.Get().IgnoreSystemIDs {
-		ids[sys] = struct{}{}
+	b, err := repository.New()
+	if err != nil {
+		slog.Warn("failed to get backend", "error", err)
+
+		return nil
 	}
 
-	if b, err := repository.New(); err == nil {
-		if idsFromBackend, err := b.GetIgnoredSystemIDs(context.Background()); err == nil {
-			for _, idStr := range idsFromBackend {
-				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
-					ids[int(id)] = struct{}{}
-					continue
-				}
+	var getError error
 
-				slog.Warn("failed to parse ignored system id", "id", idStr)
-			}
-		} else {
-			slog.Warn("failed to get ignored system ids from backend", "error", err)
+	var returnedIDs []string
+	switch kind {
+	case "system":
+		returnedIDs, getError = b.GetIgnoredSystemIDs(context.Background())
+	case "region":
+		returnedIDs, getError = b.GetIgnoredRegionIDs(context.Background())
+	default:
+		slog.Warn("invalid kind", "kind", kind)
+
+		return nil
+	}
+
+	if getError != nil {
+		slog.Warn("failed to get ignored ids from backend", "kind", kind, "error", err)
+
+		return nil
+	}
+
+	for _, idStr := range returnedIDs {
+		if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
+			ids[int(id)] = struct{}{}
+
+			continue
 		}
-	} else {
-		slog.Warn("failed to get backend", "error", err)
+
+		slog.Warn("failed to parse ignored entity id", "kind", kind, "id", idStr)
 	}
 
 	return ids
 }
 
+func ignoredSystemIDs() map[int]struct{} {
+	return ignoredEntities("system")
+}
+
 func ignoredRegionIDs() map[int]struct{} {
-	ids := make(map[int]struct{}, 0)
+	return ignoredEntities("region")
+}
 
-	for _, sys := range config.Get().IgnoreRegionIDs {
-		ids[sys] = struct{}{}
-	}
-
-	if b, err := repository.New(); err == nil {
-		if idsFromBackend, err := b.GetIgnoredRegionIDs(context.Background()); err == nil {
-			for _, idStr := range idsFromBackend {
-				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
-					ids[int(id)] = struct{}{}
-					continue
-				}
-
-				slog.Warn("failed to parse ignored system id", "id", idStr)
-			}
-		} else {
-			slog.Warn("failed to get ignored region ids from backend", "error", err)
-		}
-	} else {
-		slog.Warn("failed to get backend", "error", err)
-	}
-
-	return ids
+func userAgent() string {
+	return fmt.Sprintf("%s/%s:%s",
+		config.Get().AdminName,
+		config.Get().AppName,
+		version.GetVersion(),
+	)
 }

@@ -47,7 +47,11 @@ func (r *Backend) AddKillmail(ctx context.Context, id string) error {
 	span.SetAttributes(attribute.String("id", id))
 
 	key := fmt.Sprintf("%s:%s", config.Get().Backend.Prefix, id)
-	if err := r.store.Set(context.Background(), key, "", time.Duration(config.Get().Backend.TTL)*time.Minute).Err(); err != nil {
+	if err := r.store.Set(
+		context.Background(),
+		key, "",
+		time.Duration(config.Get().Backend.TTL)*time.Minute,
+	).Err(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 

@@ -98,6 +98,7 @@ func main() {
 
 				if _, err := s.ApplicationCommandCreate(s.State.User.ID, "", c); err != nil {
 					slog.Error("failed to register command", "command", cmd.Name, "error", err)
+
 					return
 				}
 
@@ -223,6 +224,7 @@ func main() {
 			embed, err := msg.Embed()
 			if err != nil {
 				slog.Error("failed to prepare embed", "error", err)
+
 				return
 			}
 
@@ -241,6 +243,7 @@ func main() {
 
 					if _, err := session.ChannelMessageSendEmbed(ccc, embed); err != nil {
 						slog.Error("failed to send message", "error", err)
+
 						return
 					}
 				}(channel)

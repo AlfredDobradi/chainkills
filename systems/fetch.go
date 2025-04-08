@@ -136,6 +136,7 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 				continue
 			} else if exists {
 				logger.Info("key already exists in cache", "id", id)
+
 				continue
 			}
 		}
@@ -242,7 +243,13 @@ func GetEsiKillmail(ctx context.Context, id uint64, hash string) (Killmail, erro
 	return km, nil
 }
 
-func fetchSystemKillmailsPage(logger *slog.Logger, span trace.Span, systemID string, timeframe, page int) ([]Killmail, error) {
+func fetchSystemKillmailsPage(
+	logger *slog.Logger,
+	span trace.Span,
+	systemID string,
+	timeframe,
+	page int,
+) ([]Killmail, error) {
 	var killmails []Killmail
 
 	url := fmt.Sprintf("https://zkillboard.com/api/systemID/%s/pastSeconds/%d/page/%d/", systemID, timeframe, page)
@@ -264,7 +271,7 @@ func fetchSystemKillmailsPage(logger *slog.Logger, span trace.Span, systemID str
 		return nil, err
 	}
 
-	req.Header.Set("User-Agent", fmt.Sprintf("%s/%s:%s %s", config.Get().AdminName, config.Get().AppName, config.Get().Version, config.Get().AdminEmail))
+	req.Header.Set("User-Agent", userAgent())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

@@ -133,6 +133,7 @@ func ignoreEntityID(ctx context.Context, kind string, value int64) (*discordgo.I
 	}
 
 	message := ""
+
 	switch kind {
 	case "system":
 		err = backend.IgnoreSystemID(sctx, value)

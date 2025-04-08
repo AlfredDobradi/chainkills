@@ -110,7 +110,12 @@ func (r *RedictCache) AddItem(ctx context.Context, id string) error {
 	_, span := otel.Tracer("chainkills").Start(ctx, "AddItem")
 	defer span.End()
 
-	if err := r.redict.Set(context.Background(), id, "", time.Duration(config.Get().Backend.TTL)*time.Minute).Err(); err != nil {
+	if err := r.redict.Set(
+		context.Background(),
+		id,
+		"",
+		time.Duration(config.Get().Backend.TTL)*time.Minute,
+	).Err(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 
@@ -128,9 +133,11 @@ func (r *RedictCache) Exists(ctx context.Context, id string) (bool, error) {
 	switch err {
 	case nil:
 		span.SetAttributes(attribute.String("cache", "hit"))
+
 		return true, nil
 	case redis.Nil:
 		span.SetAttributes(attribute.String("cache", "miss"))
+
 		return false, nil
 	}
 

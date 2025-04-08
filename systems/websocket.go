@@ -32,6 +32,7 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 		"channel": "killstream",
 	}); err != nil {
 		slog.Warn("failed to subscribe to killstream", "error", err)
+
 		return err
 	}
 
@@ -52,6 +53,7 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 			if err != nil {
 				if _, ok := err.(*websocket.CloseError); ok {
 					slog.Error("websocket connection closed", "error", err)
+
 					return
 				}
 				errchan <- err
@@ -61,6 +63,7 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 
 				if errorCount > 5 {
 					slog.Error("too many errors, exiting")
+
 					return
 				}
 
@@ -108,7 +111,10 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 			slog.Info("stopping websocket listener")
 			heartbeat.Stop()
 
-			if err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")); err != nil {
+			if err := c.WriteMessage(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+			); err != nil {
 				slog.Warn("failed to send close message", "error", err)
 			}
 
