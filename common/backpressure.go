@@ -41,6 +41,7 @@ func NewService(name string) *Service {
 func (s Service) String() string {
 	s.mx.Lock()
 	defer s.mx.Unlock()
+
 	return fmt.Sprintf("%s: %d", s.name, s.count)
 }
 

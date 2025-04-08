@@ -12,25 +12,25 @@ import (
 var c *Cfg
 
 type Cfg struct {
-	Verbose           bool     `yaml:"verbose"`
-	OnlyWHKills       bool     `yaml:"only_wh_kills"`
-	RefreshInterval   int      `yaml:"refresh_interval"`
-	AdminName         string   `yaml:"admin_name"`
-	AdminEmail        string   `yaml:"admin_email"`
-	AppName           string   `yaml:"app_name"`
-	Version           string   `yaml:"version"`
-	FetchTimeFrame    int      `yaml:"fetch_timeframe"`
-	IgnoreSystemNames []string `yaml:"ignore_system_names"`
-	IgnoreSystemIDs   []int    `yaml:"ignore_system_ids"`
-	IgnoreRegionIDs   []int    `yaml:"ignore_region_ids"`
-	Redict            Redict   `yaml:"redict"`
-	Wanderer          Wanderer `yaml:"wanderer"`
-	Discord           Discord  `yaml:"discord"`
-	Friends           Friends  `yaml:"friends"`
+	Verbose         bool     `yaml:"verbose"`
+	OnlyWHKills     bool     `yaml:"only_wh_kills"`
+	RefreshInterval int      `yaml:"refresh_interval"`
+	AdminName       string   `yaml:"admin_name"`
+	AdminEmail      string   `yaml:"admin_email"`
+	AppName         string   `yaml:"app_name"`
+	Version         string   `yaml:"version"`
+	FetchTimeFrame  int      `yaml:"fetch_timeframe"`
+	IgnoreSystemIDs []int    `yaml:"ignore_system_ids"`
+	IgnoreRegionIDs []int    `yaml:"ignore_region_ids"`
+	Backend         Backend  `yaml:"backend"`
+	Wanderer        Wanderer `yaml:"wanderer"`
+	Discord         Discord  `yaml:"discord"`
+	Friends         Friends  `yaml:"friends"`
 }
 
-type Redict struct {
+type Backend struct {
 	Cache    bool
+	Kind     string `yaml:"kind"`
 	Database int    `yaml:"database"`
 	TTL      int    `yaml:"ttl"` // Time to live for keys in minutes
 	Address  string `yaml:"address"`
@@ -78,7 +78,7 @@ func Read(path string) error {
 	cfg := Cfg{
 		RefreshInterval: 60,
 		FetchTimeFrame:  1,
-		Redict: Redict{
+		Backend: Backend{
 			TTL:    1440, // 24 hours
 			Prefix: "global",
 		},

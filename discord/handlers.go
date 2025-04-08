@@ -8,6 +8,7 @@ import (
 
 func HandleGuildCreate(s *discordgo.Session, m *discordgo.GuildCreate) {
 	channels := map[string]Channel{}
+
 	for _, channel := range m.Channels {
 		c := Channel{
 			ID:      channel.ID,

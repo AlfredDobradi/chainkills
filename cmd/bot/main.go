@@ -47,6 +47,7 @@ func main() {
 	if config.Get().Verbose {
 		level = slog.LevelDebug
 	}
+
 	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: level,
 	})
@@ -58,6 +59,7 @@ func main() {
 		slog.Error("failed to initialize tracer", "error", err)
 		os.Exit(1)
 	}
+
 	defer func() {
 		if err := shutdownFns.Shutdown(rootCtx); err != nil {
 			slog.Error("failed to shut down tracer cleanly", "error", err)
@@ -65,6 +67,7 @@ func main() {
 	}()
 
 	discord.Init()
+
 	session, err := discordgo.New("Bot " + config.Get().Discord.Token)
 	if err != nil {
 		slog.Error("failed to create discord session", "error", err)
@@ -82,10 +85,10 @@ func main() {
 
 	commands := []*discordgo.ApplicationCommand{
 		discord.IgnoreSystemIDCommand,
-		discord.IgnoreSystemNameCommand,
 		discord.IgnoreRegionIDCommand,
 	}
 	cmdWg := &sync.WaitGroup{}
+
 	session.AddHandler(func(s *discordgo.Session, m *discordgo.Ready) {
 		for _, cmd := range commands {
 			cmdWg.Add(1)
@@ -95,6 +98,7 @@ func main() {
 
 				if _, err := s.ApplicationCommandCreate(s.State.User.ID, "", c); err != nil {
 					slog.Error("failed to register command", "command", cmd.Name, "error", err)
+
 					return
 				}
 
@@ -102,6 +106,7 @@ func main() {
 				for _, opt := range c.Options {
 					opts = append(opts, fmt.Sprintf("%s - %s", opt.Name, opt.Type.String()))
 				}
+
 				slog.Info("registered command", "command", c.Name, "options", strings.Join(opts, ", "))
 				registeredCommands[c.Name] = c
 			}(cmd)
@@ -153,6 +158,7 @@ func main() {
 	tick := time.NewTicker(tickerDuration)
 
 	errors := make(chan error)
+
 	go func() {
 		for {
 			select {
@@ -169,15 +175,19 @@ func main() {
 
 	stop := make(chan struct{})
 	fetchLoop := true
+
 	go func() {
 		retries := 0
+
 		for {
 			if err := systems.StartListener(out, stop, errors); err != nil {
 				slog.Error("failed to start listener", "error", err)
 			}
+
 			if !fetchLoop {
 				return
 			}
+
 			dur := 5 * time.Second
 			slog.Warn("listener failed", "retries", retries, "sleep", dur.String())
 			time.Sleep(dur)
@@ -193,6 +203,7 @@ func main() {
 			channels := config.Get().Discord.Channels
 
 			validChannels := make([]string, 0)
+
 			for _, c := range channels {
 				if _, err := session.State.Channel(c); err == nil {
 					validChannels = append(validChannels, c)
@@ -200,34 +211,44 @@ func main() {
 					slog.Warn("channel not found", "channel", c)
 				}
 			}
+
 			if config.Get().Discord.DryRun {
 				slog.Warn("dry run enabled, not sending message",
 					"message", msg,
 					"channels", validChannels,
 				)
+
 				continue
 			}
 
 			embed, err := msg.Embed()
 			if err != nil {
 				slog.Error("failed to prepare embed", "error", err)
+
 				return
 			}
+
 			cwg := &sync.WaitGroup{}
+
 			common.GetBackpressureMonitor().Increase("channel_send")
+
 			for _, channel := range validChannels {
 				cwg.Add(1)
+
 				go func(ccc string) {
 					defer func() {
 						common.GetBackpressureMonitor().Decrease("channel_send")
 						cwg.Done()
 					}()
+
 					if _, err := session.ChannelMessageSendEmbed(ccc, embed); err != nil {
 						slog.Error("failed to send message", "error", err)
+
 						return
 					}
 				}(channel)
 			}
+
 			cwg.Wait()
 
 			common.GetBackpressureMonitor().Decrease("killmail")
@@ -238,7 +259,9 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt)
 
 	<-sigChan
+
 	fetchLoop = false
+
 	close(stop)
 	tick.Stop()
 	close(out)

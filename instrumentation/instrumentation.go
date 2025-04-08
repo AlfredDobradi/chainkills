@@ -24,6 +24,7 @@ func (s *ShutdownFunctions) Shutdown(ctx context.Context) error {
 	if s.Tracer != nil {
 		err = errors.Join(err, s.Tracer(ctx))
 	}
+
 	return err
 }
 
@@ -66,5 +67,4 @@ func Init(ctx context.Context) (*ShutdownFunctions, error) {
 	return &ShutdownFunctions{
 		Tracer: tracerShutdown,
 	}, nil
-
 }

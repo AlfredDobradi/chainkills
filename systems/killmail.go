@@ -88,5 +88,6 @@ func (k *Killmail) Embed() (*discordgo.MessageEmbed, error) {
 	}
 
 	slog.Info("prepared embed", "embed", embed)
+
 	return embed, nil
 }

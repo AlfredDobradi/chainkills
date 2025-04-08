@@ -12,5 +12,6 @@ func Contains[T string | int | uint64](haystack []T, needle T) bool {
 
 func ContainsKey[T string | int](haystack map[T]struct{}, needle T) bool {
 	_, ok := haystack[needle]
+
 	return ok
 }

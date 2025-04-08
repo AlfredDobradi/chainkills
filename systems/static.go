@@ -8,6 +8,7 @@ type CachedSystem struct {
 
 func GetSystem(systemID int) (CachedSystem, bool) {
 	system, ok := cachedSystems[systemID]
+
 	return system, ok
 }
 

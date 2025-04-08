@@ -14,9 +14,11 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 	// connect to websocket
 	u := url.URL{Scheme: "wss", Host: "zkillboard.com", Path: "/websocket/"}
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+
 	if err != nil {
 		log.Fatal("dial:", err)
 	}
+
 	defer func() {
 		if err := c.Close(); err != nil {
 			slog.Error("failed to close websocket connection", "error", err)
@@ -30,32 +32,41 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 		"channel": "killstream",
 	}); err != nil {
 		slog.Warn("failed to subscribe to killstream", "error", err)
+
 		return err
 	}
 
 	// start heartbeat ticker
 	heartbeat := time.NewTicker(30 * time.Second)
+
 	var killmail Killmail
 
 	// listener loop in goroutine
 	// 	send killmails to outbox
 	errorCount := 0
+
 	go func() {
 		defer close(done)
+
 		for {
 			err := c.ReadJSON(&killmail)
 			if err != nil {
 				if _, ok := err.(*websocket.CloseError); ok {
 					slog.Error("websocket connection closed", "error", err)
+
 					return
 				}
 				errchan <- err
 				slog.Warn("error reading message", "error", err)
+
 				errorCount++
+
 				if errorCount > 5 {
 					slog.Error("too many errors, exiting")
+
 					return
 				}
+
 				continue
 			}
 
@@ -66,6 +77,7 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 					"reason", "NPC kill",
 					"id", killmail.KillmailID,
 				)
+
 				continue
 			}
 
@@ -75,6 +87,7 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 					"id", killmail.KillmailID,
 					"system", killmail.SolarSystemID,
 				)
+
 				continue
 			}
 
@@ -97,10 +110,16 @@ func StartListener(outbox chan Killmail, stop chan struct{}, errchan chan error)
 		case <-stop:
 			slog.Info("stopping websocket listener")
 			heartbeat.Stop()
-			if err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")); err != nil {
+
+			if err := c.WriteMessage(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+			); err != nil {
 				slog.Warn("failed to send close message", "error", err)
 			}
+
 			<-done
+
 			return nil
 		case <-heartbeat.C:
 			if err := c.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -118,11 +137,13 @@ func filter(km Killmail) bool {
 	Register().mx.Unlock()
 
 	found := false
+
 	for _, sys := range systems {
 		if sys.SolarSystemID == km.SolarSystemID {
 			found = true
 		}
 	}
+
 	if !found {
 		return false
 	}

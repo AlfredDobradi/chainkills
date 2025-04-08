@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"git.sr.ht/~barveyhirdman/chainkills/backend"
+	"git.sr.ht/~barveyhirdman/chainkills/backend/repository"
 	"git.sr.ht/~barveyhirdman/chainkills/common"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
 	"go.opentelemetry.io/otel"
@@ -33,11 +33,13 @@ func FetchKillmails(ctx context.Context, systems []System) (map[string]Killmail,
 	killmails := make(map[string]Killmail)
 
 	var outerError error
+
 	wg := &sync.WaitGroup{}
 
 	for _, system := range systems {
 		wg.Add(1)
 		common.GetBackpressureMonitor().Increase("fetch_system_killmails")
+
 		go func(ctx context.Context, s System) {
 			defer func() {
 				common.GetBackpressureMonitor().Decrease("fetch_system_killmails")
@@ -48,6 +50,7 @@ func FetchKillmails(ctx context.Context, systems []System) (map[string]Killmail,
 			if err != nil {
 				logger.Error("failed to fetch system killmails", "system", system.SolarSystemID, "error", err)
 				outerError = errors.Join(outerError, err)
+
 				return
 			}
 
@@ -56,6 +59,7 @@ func FetchKillmails(ctx context.Context, systems []System) (map[string]Killmail,
 			mx.Unlock()
 		}(sctx, system)
 	}
+
 	wg.Wait()
 
 	logger.Info("finished fetching killmails in the chain", "count", len(killmails))
@@ -64,6 +68,7 @@ func FetchKillmails(ctx context.Context, systems []System) (map[string]Killmail,
 			attribute.Int("count", len(killmails)),
 		),
 	)
+
 	return killmails, outerError
 }
 
@@ -90,6 +95,7 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 		if err != nil {
 			logger.Error("failed to fetch killmails", "system", systemID, "error", err)
 			span.RecordError(err)
+
 			break
 		}
 
@@ -101,11 +107,12 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 		page++
 	}
 
-	cache, err := backend.Backend()
+	cache, err := repository.New()
 	if err != nil {
 		logger.Error("failed to get cache instance", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return nil, err
 	}
 
@@ -119,15 +126,17 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 		km := killmails[i]
 		id := fmt.Sprintf("%d", km.KillmailID)
 
-		if config.Get().Redict.Cache {
+		if config.Get().Backend.Cache {
 			exists, err := cache.KillmailExists(sctx, id)
 			if err != nil {
 				span.RecordError(err)
 				span.SetStatus(codes.Error, err.Error())
 				logger.Error("failed to check id in cache", "error", err)
+
 				continue
 			} else if exists {
 				logger.Info("key already exists in cache", "id", id)
+
 				continue
 			}
 		}
@@ -138,6 +147,7 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 		if err != nil {
 			logger.Error("failed to fetch killmail", "id", km.KillmailID, "hash", km.Zkill.Hash, "error", err)
 			span.RecordError(err)
+
 			return nil, err
 		}
 
@@ -163,7 +173,7 @@ func FetchSystemKillmails(ctx context.Context, systemID string) (map[string]Kill
 
 		kms[id] = km
 
-		if config.Get().Redict.Cache {
+		if config.Get().Backend.Cache {
 			if err := cache.AddKillmail(sctx, id); err != nil {
 				span.RecordError(err)
 				logger.Error("failed to add item to cache", "id", id, "error", err)
@@ -202,22 +212,28 @@ func GetEsiKillmail(ctx context.Context, id uint64, hash string) (Killmail, erro
 		logger.Error("failed to fetch killmail", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return Killmail{}, err
 	}
 
 	var km Killmail
+
 	decoder := json.NewDecoder(resp.Body)
+
 	if err := decoder.Decode(&km); err != nil {
 		logger.Error("failed to decode killmail", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		if err := resp.Body.Close(); err != nil {
 			logger.Error("failed to close response body", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 		}
+
 		return Killmail{}, err
 	}
+
 	if err := resp.Body.Close(); err != nil {
 		logger.Error("failed to close response body", "error", err)
 		span.RecordError(err)
@@ -227,8 +243,15 @@ func GetEsiKillmail(ctx context.Context, id uint64, hash string) (Killmail, erro
 	return km, nil
 }
 
-func fetchSystemKillmailsPage(logger *slog.Logger, span trace.Span, systemID string, timeframe, page int) ([]Killmail, error) {
+func fetchSystemKillmailsPage(
+	logger *slog.Logger,
+	span trace.Span,
+	systemID string,
+	timeframe,
+	page int,
+) ([]Killmail, error) {
 	var killmails []Killmail
+
 	url := fmt.Sprintf("https://zkillboard.com/api/systemID/%s/pastSeconds/%d/page/%d/", systemID, timeframe, page)
 	logger.Info("fetching killmails", "system", systemID, "url", url)
 	span.AddEvent("fetching killmails for system", trace.WithAttributes(
@@ -237,34 +260,43 @@ func fetchSystemKillmailsPage(logger *slog.Logger, span trace.Span, systemID str
 		attribute.Int("page", page),
 		attribute.String("url", url),
 	))
+
 	req, err := http.NewRequest(http.MethodGet, url, nil)
+
 	if err != nil {
 		logger.Error("failed to create request", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return nil, err
 	}
-	req.Header.Set("User-Agent", fmt.Sprintf("%s/%s:%s %s", config.Get().AdminName, config.Get().AppName, config.Get().Version, config.Get().AdminEmail))
+
+	req.Header.Set("User-Agent", userAgent())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		logger.Error("failed to fetch killmails", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return nil, err
 	}
+
 	decoder := json.NewDecoder(resp.Body)
 	if err := decoder.Decode(&killmails); err != nil {
 		logger.Error("failed to decode killmails", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		if err := resp.Body.Close(); err != nil {
 			logger.Error("failed to close response body", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 		}
+
 		return nil, err
 	}
+
 	if err := resp.Body.Close(); err != nil {
 		logger.Error("failed to close response body", "error", err)
 		span.RecordError(err)

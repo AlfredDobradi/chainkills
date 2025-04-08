@@ -12,9 +12,10 @@ import (
 	"strconv"
 	"sync"
 
-	"git.sr.ht/~barveyhirdman/chainkills/backend"
+	"git.sr.ht/~barveyhirdman/chainkills/backend/repository"
 	"git.sr.ht/~barveyhirdman/chainkills/common"
 	"git.sr.ht/~barveyhirdman/chainkills/config"
+	"git.sr.ht/~barveyhirdman/chainkills/version"
 	"github.com/gorilla/websocket"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -80,6 +81,7 @@ func Register(opts ...Option) *SystemRegister {
 
 func listHash(list []System) [32]byte {
 	listJSON, _ := json.Marshal(list)
+
 	return sha256.Sum256(listJSON)
 }
 
@@ -105,22 +107,27 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 	span.AddEvent("fetch systems", trace.WithAttributes(
 		attribute.String("url", url),
 	))
+
 	req, err := http.NewRequest(http.MethodGet, url, nil)
+
 	if err != nil {
 		logger.Error("failed to create request", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return false, err
 	}
+
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", config.Get().Wanderer.Token))
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", fmt.Sprintf("%s/%s:%s", config.Get().AdminName, config.Get().AppName, config.Get().Version))
+	req.Header.Add("User-Agent", userAgent())
 
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Error("failed to fetch systems", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return false, err
 	}
 
@@ -131,13 +138,16 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 		logger.Error("failed to decode systems", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		if err := resp.Body.Close(); err != nil {
 			logger.Error("failed to close response body", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 		}
+
 		return false, err
 	}
+
 	if err := resp.Body.Close(); err != nil {
 		logger.Error("failed to close response body", "error", err)
 		span.RecordError(err)
@@ -148,28 +158,18 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 
 	logger.Info("filtering systems",
 		"wormholes_only", config.Get().OnlyWHKills,
-		"ignored_system_names", ignoredSystemNames(),
 		"ignored_system_ids", ignoredSystemIDs(),
 		"ignored_region_ids", ignoredRegionIDs(),
 	)
 
 	for _, sys := range list.Data {
-
 		if config.Get().OnlyWHKills && !isWH(sys) {
 			logger.Debug("discarding system",
 				"reason", "wormhole kills only is turned on",
 				"system_name", sys.Name,
 				"system_id", sys.SolarSystemID,
 			)
-			continue
-		}
 
-		if common.ContainsKey(ignoredSystemNames(), sys.Name) {
-			logger.Debug("discarding system",
-				"reason", "system is on ignore list",
-				"system_name", sys.Name,
-				"system_id", sys.SolarSystemID,
-			)
 			continue
 		}
 
@@ -179,6 +179,7 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 				"system_name", sys.Name,
 				"system_id", sys.SolarSystemID,
 			)
+
 			continue
 		}
 
@@ -191,6 +192,7 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 					"system_id", sys.SolarSystemID,
 					"region_id", systemData.RegionID,
 				)
+
 				continue
 			}
 		} else {
@@ -198,7 +200,6 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 		}
 
 		tmpRegistry = append(tmpRegistry, sys)
-
 	}
 
 	newHash := listHash(tmpRegistry)
@@ -215,6 +216,7 @@ func (s *SystemRegister) Update(ctx context.Context) (bool, error) {
 		attribute.Bool("change", changed),
 		attribute.Int("system_count", len(tmpRegistry)),
 	))
+
 	return changed, nil
 }
 
@@ -246,6 +248,7 @@ func (s *SystemRegister) Fetch(ctx context.Context, out chan Killmail) error {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+
 		return err
 	}
 
@@ -261,80 +264,62 @@ func isWH(sys System) bool {
 	return whPattern.MatchString(sys.Name)
 }
 
-// ignoredSystemIDs returns a map of system IDs that should be ignored
-// from the config and the backend both by name and ID
-func ignoredSystemIDs() map[int]struct{} {
+func ignoredEntities(kind string) map[int]struct{} {
 	ids := make(map[int]struct{}, 0)
 
-	for _, sys := range config.Get().IgnoreSystemIDs {
-		ids[sys] = struct{}{}
+	b, err := repository.New()
+	if err != nil {
+		slog.Warn("failed to get backend", "error", err)
+
+		return nil
 	}
 
-	if b, err := backend.Backend(); err == nil {
-		if idsFromBackend, err := b.GetIgnoredSystemIDs(context.Background()); err == nil {
-			for _, idStr := range idsFromBackend {
-				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
-					ids[int(id)] = struct{}{}
-					continue
-				}
+	var getError error
 
-				slog.Warn("failed to parse ignored system id", "id", idStr)
-			}
-		} else {
-			slog.Warn("failed to get ignored system ids from backend", "error", err)
+	var returnedIDs []string
+
+	switch kind {
+	case "system":
+		returnedIDs, getError = b.GetIgnoredSystemIDs(context.Background())
+	case "region":
+		returnedIDs, getError = b.GetIgnoredRegionIDs(context.Background())
+	default:
+		slog.Warn("invalid kind", "kind", kind)
+
+		return nil
+	}
+
+	if getError != nil {
+		slog.Warn("failed to get ignored ids from backend", "kind", kind, "error", err)
+
+		return nil
+	}
+
+	for _, idStr := range returnedIDs {
+		if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
+			ids[int(id)] = struct{}{}
+
+			continue
 		}
-	} else {
-		slog.Warn("failed to get backend", "error", err)
+
+		slog.Warn("failed to parse ignored entity id", "kind", kind, "id", idStr)
 	}
 
 	return ids
 }
 
-func ignoredSystemNames() map[string]struct{} {
-	names := make(map[string]struct{}, 0)
-
-	for _, sys := range config.Get().IgnoreSystemNames {
-		names[sys] = struct{}{}
-	}
-
-	if b, err := backend.Backend(); err == nil {
-		if namesFromBackend, err := b.GetIgnoredSystemNames(context.Background()); err == nil {
-			for _, name := range namesFromBackend {
-				names[name] = struct{}{}
-			}
-		} else {
-			slog.Warn("failed to get ignored system names from backend", "error", err)
-		}
-	} else {
-		slog.Warn("failed to get backend", "error", err)
-	}
-
-	return names
+func ignoredSystemIDs() map[int]struct{} {
+	return ignoredEntities("system")
 }
 
 func ignoredRegionIDs() map[int]struct{} {
-	ids := make(map[int]struct{}, 0)
+	return ignoredEntities("region")
+}
 
-	for _, sys := range config.Get().IgnoreRegionIDs {
-		ids[sys] = struct{}{}
-	}
-
-	if b, err := backend.Backend(); err == nil {
-		if idsFromBackend, err := b.GetIgnoredRegionIDs(context.Background()); err == nil {
-			for _, idStr := range idsFromBackend {
-				if id, err := strconv.ParseInt(idStr, 10, 0); err == nil {
-					ids[int(id)] = struct{}{}
-					continue
-				}
-
-				slog.Warn("failed to parse ignored system id", "id", idStr)
-			}
-		} else {
-			slog.Warn("failed to get ignored region ids from backend", "error", err)
-		}
-	} else {
-		slog.Warn("failed to get backend", "error", err)
-	}
-
-	return ids
+func userAgent() string {
+	return fmt.Sprintf("%s/%s:%s",
+		config.Get().AdminName,
+		config.Get().AppName,
+		version.GetVersion(),
+	)
 }

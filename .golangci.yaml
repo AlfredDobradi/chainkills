@@ -1,0 +1,28 @@
+version: "2"
+
+linters:
+  default: fast
+
+  enable:
+    - cyclop
+  
+  disable:
+    - depguard
+    - mnd
+    - testpackage
+    - gocyclo
+    - funlen # TODO refactor and reenable
+    - gocognit # TODO refactor and reenable
+    - cyclop # TODO refactor and reenable
+    - maintidx # TODO refactor and reenable
+  
+  settings:
+    cyclop:
+      # TODO decrease this to 10
+      max-complexity: 15
+  
+  exclusions:
+    rules:
+      - path: 'systems/static.go'
+        linters:
+          - misspell

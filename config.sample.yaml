@@ -23,7 +23,8 @@ friends: # List of friendly entities
   alliances: []
   corporations: []
   characters: []
-redict: # Backend configuration
+backend: # Backend configuration
+  kind: redis # Backend type (memory, redis)
   address: localhost:6379
   database: 0
   ttl: 86400 # How long a killmail's key is cached in Redis

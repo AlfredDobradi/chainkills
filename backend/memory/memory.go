@@ -2,74 +2,78 @@ package memory
 
 import (
 	"context"
-	"sync"
+	"fmt"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
-var ttl = 24 * time.Hour
-
-type Backend struct {
-	mx *sync.Mutex
-
-	count uint64
-	items map[string]time.Time
+type Store struct {
+	keyValue map[any]any
 }
 
-func New() (*Backend, error) {
-	return &Backend{
-		mx: &sync.Mutex{},
-
-		count: 0,
-		items: make(map[string]time.Time),
-	}, nil
+func New() *Store {
+	return &Store{
+		keyValue: make(map[any]any),
+	}
 }
 
-func (c *Backend) AddKillmail(_ context.Context, id string) error {
-	c.mx.Lock()
-	defer c.mx.Unlock()
+func (s *Store) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+	s.keyValue[key] = value
 
-	if _, ok := c.items[id]; ok {
-		return nil
+	return redis.NewStatusCmd(ctx, "OK")
+}
+
+func (s *Store) Get(ctx context.Context, key string) *redis.StringCmd {
+	if value, ok := s.keyValue[key]; ok {
+		return redis.NewStringResult(value.(string), nil)
 	}
 
-	c.items[id] = time.Now()
-	c.count += 1
-
-	c.evict()
-	return nil
+	return redis.NewStringResult("", redis.Nil)
 }
 
-func (c *Backend) KillmailExists(_ context.Context, id string) (bool, error) {
-	if _, ok := c.items[id]; ok {
-		return true, nil
+func (s *Store) SMembers(ctx context.Context, key string) *redis.StringSliceCmd {
+	result := make([]string, 0)
+	ss, ok := s.keyValue[key]
+
+	if !ok {
+		return redis.NewStringSliceResult(result, redis.Nil)
 	}
 
-	return false, nil
+	value, ok := ss.(map[any]struct{})
+	if !ok {
+		return redis.NewStringSliceResult(result, redis.Nil)
+	}
+
+	members := make([]string, 0, len(value))
+	for k := range value {
+		members = append(members, fmt.Sprintf("%v", k))
+	}
+
+	return redis.NewStringSliceResult(members, nil)
 }
 
-func (c *Backend) evict() {
-	for k, added := range c.items {
-		if added.Before(time.Now().Add(-1 * ttl)) {
-			delete(c.items, k)
+func (s *Store) SAdd(ctx context.Context, key string, members ...any) *redis.IntCmd {
+	ss, ok := s.keyValue[key]
+	if !ok {
+		ss = make(map[any]struct{})
+		s.keyValue[key] = ss
+	}
+
+	value, ok := ss.(map[any]struct{})
+	if !ok {
+		return redis.NewIntResult(0, redis.Nil)
+	}
+
+	var delta int64 = 0
+
+	for _, m := range members {
+		if _, ok := value[m]; !ok {
+			delta++
 		}
-	}
-}
 
-func (c *Backend) GetIgnoredSystemIDs(ctx context.Context) ([]string, error) {
-	return make([]string, 0), nil
-}
-func (c *Backend) GetIgnoredSystemNames(ctx context.Context) ([]string, error) {
-	return make([]string, 0), nil
-}
-func (c *Backend) GetIgnoredRegionIDs(ctx context.Context) ([]string, error) {
-	return make([]string, 0), nil
-}
-func (c *Backend) IgnoreSystemID(ctx context.Context, id int64) error {
-	return nil
-}
-func (c *Backend) IgnoreSystemName(ctx context.Context, name string) error {
-	return nil
-}
-func (c *Backend) IgnoreRegionID(ctx context.Context, id int64) error {
-	return nil
+		value[m] = struct{}{}
+	}
+
+	return redis.NewIntResult(delta, nil)
 }
